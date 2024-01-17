@@ -1,18 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-//주문 하기
-router.post('/', (req, res) => {
-    res.json('hello');
-});
+const {
+    order,
+    findOrders,
+    findOrderById
+} = require('../controller/OrderController');
 
-//주문 목록 조회
-router.get('/', (req, res) => {
-    res.json('hello');
-});
-
-router.get('/:id', (req,res) => {
-    res.json('hello');
-});
+router.post('/', order);
+router.get('/', findOrders);
+router.get('/:id', findOrderById);
 
 module.exports = router;
