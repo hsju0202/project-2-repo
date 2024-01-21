@@ -2,7 +2,8 @@ const conn = require('../mariadb');
 const {StatusCodes} = require('http-status-codes');
 
 const findCartItems = (req, res) => {
-    const {userId, selectedIds} = req.body;
+    const user = req.user;
+    const {selectedIds} = req.body;
 
     let sql = `select c.id,
                       c.book_id,
@@ -14,7 +15,7 @@ const findCartItems = (req, res) => {
                  left join books b on c.book_id = b.id
                 where user_id = ?`;
 
-    const values = [userId];
+    const values = [user.id];
 
     if (selectedIds && selectedIds.length) {
         sql += ' and c.id in (?)';
@@ -35,7 +36,8 @@ const findCartItems = (req, res) => {
 };
 
 const addItem2Cart = (req, res) => {
-    const {userId, bookId, quantity} = req.body;
+    const user = req.user;
+    const {bookId, quantity} = req.body;
 
     const sql = `insert into cart_items
                     (user_id, book_id, quantity)
@@ -43,7 +45,7 @@ const addItem2Cart = (req, res) => {
                     (?, ?, ?)
                  on duplicate key update
                     quantity = ?`;
-    const values = [userId, bookId, quantity, quantity];
+    const values = [user.id, bookId, quantity, quantity];
     conn.query(sql, values,
         (err, results) => {
             if (err) {
@@ -58,10 +60,12 @@ const addItem2Cart = (req, res) => {
 };
 
 const deleteItemFromCart = (req, res) => {
+    const user = req.user;
     const id = parseInt(req.params.id);
 
-    const sql = 'delete from cart_items where id = ?';
-    conn.query(sql, id,
+    const sql = 'delete from cart_items where user_id = ? and id = ?';
+    const values = [user.id, id];
+    conn.query(sql, values,
         (err, results) => {
             if (err) {
                 console.log(err);

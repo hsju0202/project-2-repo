@@ -1,10 +1,10 @@
-const express = require('express');
-const app = express();
-
 const dotenv = require('dotenv');
+const express = require('express');
+const cookieParser = require('cookie-parser');
+
 dotenv.config();
 
-const cookieParser = require('cookie-parser');
+const app = express();
 
 app.listen(process.env.PORT);
 app.use(express.json());
@@ -23,3 +23,7 @@ app.use('/categories', categoryRouter);
 app.use('/carts', cartRouter);
 app.use('/likes', likeRouter);
 app.use('/orders', orderRouter);
+
+const {handleError} = require('./middleware/errorHandler');
+
+app.use(handleError);

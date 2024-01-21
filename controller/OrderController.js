@@ -1,6 +1,7 @@
 // const conn = require('../mariadb');
 const mysql = require('mysql2/promise');
 const {StatusCodes} = require('http-status-codes');
+const {NotUserOwnCartItem} = require('../middleware/errorHandler');
 
 const order = async (req, res) => {
     const conn = await mysql.createConnection({
@@ -11,7 +12,8 @@ const order = async (req, res) => {
         dateStrings: true
       });
 
-    const {userId, cartItemIds, delivery, firstBookTitle, totalQuantity, totalPrice} = req.body;
+    const user = req.user;
+    const {cartItemIds, delivery, firstBookTitle, totalQuantity, totalPrice} = req.body;
 
     let sql = 'insert into deliveries (address, receiver, contact) values (?, ?, ?)';
     let values = [delivery.address, delivery.receiver, delivery.contact];
@@ -19,17 +21,20 @@ const order = async (req, res) => {
     const deliveryId = results.insertId;
 
     sql = 'insert into orders (user_id, book_title, total_quantity, total_price, delivery_id) values (?, ?, ?, ?, ?)';
-    values = [userId, firstBookTitle, totalQuantity, totalPrice, deliveryId];
+    values = [user.id, firstBookTitle, totalQuantity, totalPrice, deliveryId];
     [results] = await conn.execute(sql, values);
     const orderId = results.insertId;
 
-    sql = 'select book_id, quantity from cart_items where id in (?)';
+    sql = 'select user_id, book_id, quantity from cart_items where id in (?)';
     const [orderItems] = await conn.query(sql, [cartItemIds]);
     console.log(orderItems);
 
     sql = 'insert into ordered_books (order_id, book_id, quantity) values ?';
     values = [];
     orderItems.forEach(item => {
+        if (user.id !== item.user_id) {
+            next(new NotUserOwnCartItem());
+        }
         values.push([orderId, item.book_id, item.quantity]);
     });
 
@@ -50,7 +55,7 @@ const deleteCartItem = async (conn, cartItemIds) => {
 }
 
 const findOrders = async (req, res) => {
-    const {userId} = req.body;
+    const user = req.user;
 
     const conn = await mysql.createConnection({
         host: 'localhost',
@@ -71,12 +76,13 @@ const findOrders = async (req, res) => {
                    from orders o left join deliveries d on o.delivery_id = d.id
                   where o.user_id = ?`;
     
-    const [results] = await conn.execute(sql, [userId]);
+    const [results] = await conn.execute(sql, [user.id]);
     
     res.status(StatusCodes.OK).json(results);
 };
 
 const findOrderById = async (req, res) => {
+    const user = req.user;
     const id = parseInt(req.params.id);
 
     const conn = await mysql.createConnection({
@@ -86,6 +92,8 @@ const findOrderById = async (req, res) => {
         database: 'Bookshop',
         dateStrings: true
       });
+
+    //TODO : user.id 로 인가처리
 
     const sql = `select b.id,
                         b.title,
